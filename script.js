@@ -1,118 +1,153 @@
-const canvas = document.getElementById("JogoCanvas")
-const ctx = canvas.getContext("2d")
+const canvas = document.getElementById('JogoCanvas');
+const ctx = canvas.getContext('2d');
+
 
 class Entidade {
-    constructor(x, y, largura, altura, cor) {
-        this.x = x,
-        this.y = y,
-        this.largura = largura,
-        this.altura = altura,
-        this.cor = cor
-    }
-
-    desenhar() {
-        ctx.fillStyle = this.cor
-        ctx.fillRect(this.x, this.y, this.largura, this.altura)
-    }
+constructor(x, y, largura, altura, cor) {
+this.x = x,
+this.y = y,
+this.largura = largura,
+this.altura = altura,
+this.cor = cor
 }
+
+desenhar() {
+ctx.fillStyle = this.cor;
+ctx.fillRect(this.x, this.y, this.largura, this.altura)
+}
+}
+
 
 class Jogador extends Entidade {
-    constructor(x, y, largura, altura, cor) {
-        super(x, y, largura, altura, cor)
-        this.velocidadeY = 0
-        this.pulando = false
-        this.pontos = 0
-    }
-
-    saltar() {
-        if (!this.pulando) {
-            this.velocidadeY = -15
-            this.pulando = true
-        }
-    }
-
-    atualizar() {
-        this.y += this.velocidadeY
-        this.velocidadeY += 0.8
-
-        if (this.y >= canvas.height - this.altura) {
-            this.y = canvas.height - this.altura
-            this.pulando = false
-        }
-    }
-
-    coletarItem(item) {
-        if (
-            this.x < item.x + item.largura &&
-            this.x + this.largura > item.x &&
-            this.y < item.y + item.altura &&
-            this.y + this.altura > item.y
-        ) {
-            item.resetar()
-            this.pontos += 10
-        }
-    }
+constructor() {
+super(canvas.width/2 - 25, canvas.height - 60, 50, 50, 'red')
+this.velocidade = 15
 }
 
-class Item extends Entidade {
-    constructor(x, y, largura, altura, cor) {
-        super(x, y, largura, altura, cor)
-        this.velocidadeX = -5
-    }
-
-    atualizar() {
-        this.x += this.velocidadeX;
-
-        if (this.x + this.largura < 0) {
-            this.resetar()
-        }
-    }
-
-    resetar() {
-        this.x = canvas.width
-        this.y = Math.random() * (canvas.height - this.altura)
-    }
+mover(direcao) {
+if (direcao == 'esquerda') this.x = Math.max(0, this.x - this.velocidade);
+if (direcao == 'direita') this.x = Math.min(canvas.width - this.largura, this.x + this.velocidade)
 }
 
-class Obstaculo extends Entidade {
-    constructor(x, y, largura, altura, cor) {
-        super(x, y, largura, altura, cor)
-        this.velocidadeX = 5
-    }
-
-    atualizar() {
-        this.x += this.velocidadeX
-
-        if (this.x + this.largura < 0) {
-            this.x = canvas.width + Math.random() * 100
-        }
-    }
+atirar() {
+return new Tiro(this.x + this.largura/2 - 2.5, this.y - 10)
+}
 }
 
-const jogador = new Jogador(50, canvas.height - 50, 40, 40, 'blue')
-const item = new Item(canvas.width, Math.random() * (canvas.height - 30), 30, 30, 'yellow')
-const obstaculo = new Obstaculo(canvas.width + 100, canvas.height - 50, 50, 50, 'red')
+class Alien extends Entidade {
+constructor(x) {
+super(x, -40, 40, 40, 'pink')
+this.velocidade = 1 + Math.random() * 0.5
+}
+
+atualizar() {
+this.y += this.velocidade
+return this.y > canvas.height
+}
+}
+
+class Tiro extends Entidade {
+constructor(x, y) {
+super(x, y, 5, 15, 'black')
+this.velocidade = 8
+}
+
+atualizar() {
+this.y -= this.velocidade
+return this.y < 0 
+}
+}
+
+
+const jogador = new Jogador()
+const tiros = []
+const aliens = []
+let pontuacao = 0
+let gameOver = false
+let ultimoAlien = 0
+
+
+document.addEventListener('keydown', (e) => {
+if (gameOver) return;
+
+if (e.key == 'ArrowLeft') jogador.mover('esquerda')
+if (e.key == 'ArrowRight') jogador.mover('direita')
+if (e.key == ' ') tiros.push(jogador.atirar())
+})
+
+
+function checarColisao(a, b) {
+return a.x < b.x + b.largura &&
+a.x + a.largura > b.x &&
+a.y < b.y + b.altura &&
+a.y + a.altura > b.y
+}
+
 
 function loop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    jogador.desenhar()
-    jogador.atualizar()
 
-    item.desenhar()
-    item.atualizar()
+if (!gameOver) {
 
-    obstaculo.desenhar()
-    obstaculo.atualizar()
-
-    jogador.coletarItem(item)
-
-    ctx.fillStyle = 'black'
-    ctx.font = '20px Arial'
-    ctx.fillText(`Pontos: ${jogador.pontos}`, 10, 20)
-
-    requestAnimationFrame(loop)
+if (Date.now() - ultimoAlien > 2000) {
+aliens.push(new Alien(Math.random() * (canvas.width - 40)))
+ultimoAlien = Date.now()
 }
+
+
+for (let i = aliens.length - 1; i >= 0; i--) {
+if (aliens[i].atualizar()) {
+gameOver = true
+break;
+}
+
+
+if (checarColisao(aliens[i], jogador)) {
+gameOver = true
+break
+}
+
+aliens[i].desenhar()
+}
+
+
+for (let i = tiros.length - 1; i >= 0; i--) {
+if (tiros[i].atualizar()) {
+tiros.splice(i, 1)
+continue
+}
+}
+
+for (let j = aliens.length - 1; j >= 0; j--) {
+if (checarColisao(tiros[i], aliens[j])) {
+aliens.splice(j, 1)
+tiros.splice(i, 1)
+pontuacao += 10
+break
+}
+}
+
+if (i < tiros.length) tiros[i].desenhar()
+}
+
+{
+jogador.desenhar()
+}
+
+ctx.fillStyle = 'white'
+ctx.font = '20px Arial'
+ctx.fillText(`Pontuação: ${pontuacao}`, 10, 30)
+} 
+
+ctx.fillStyle = 'white'
+ctx.font = '48px Arial'
+ctx.fillText('PERDEU', canvas.width/2 - 120, canvas.height/2)
+ctx.font = '24px Arial'
+ctx.fillText(`Pontuação final: ${pontuacao}`, canvas.width/2 - 100, canvas.height/2 + 40)
+
+
+requestAnimationFrame(loop)
 
 
 
