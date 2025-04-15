@@ -114,10 +114,6 @@ function loop() {
     requestAnimationFrame(loop)
 }
 
-document.addEventListener("keypress", (e) => {
-    if (e.code === "Space") {
-        jogador.saltar()
-    }
-})
+
 
 loop()
